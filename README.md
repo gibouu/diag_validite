@@ -66,6 +66,14 @@ Le build statique est généré dans `dist/`. Utilisez `npm run preview` pour un
    - Output Directory : `dist`
 5. Lancez le déploiement. Une fois terminé, vérifiez le formulaire sur l'URL fournie.
 
+## Déploiement sur GitHub Pages
+
+Le workflow GitHub Actions `Deploy to GitHub Pages` construit l'application et publie le contenu de `dist/` sur l'environnement Pages.
+
+1. Activez GitHub Pages dans les paramètres du dépôt (`Settings > Pages`) et choisissez le mode *GitHub Actions*.
+2. Poussez sur `main` pour déclencher le workflow ; le déploiement se lance automatiquement.
+3. L'application est accessible sur `https://<votre-utilisateur>.github.io/diag_validite/`.
+
 ## Déploiement sur Netlify (alternative)
 
 1. Créez un site via l'interface Netlify.
