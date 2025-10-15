@@ -118,7 +118,7 @@ export const getApplicableDiagnostics = (typeBien, context, annee) => {
   return Array.from(diags);
 };
 
-export const getDiagnosticValidity = (diagnostic, context, detecte = false) => {
+export const getDiagnosticValidity = (diagnostic, context, detecte = false, diagnosticDate = null) => {
   const validites = {
     dpe: { vente: 10, location: 10 },
     amiante: { vente: detecte ? 3 : Infinity, location: detecte ? 3 : Infinity },
@@ -130,6 +130,14 @@ export const getDiagnosticValidity = (diagnostic, context, detecte = false) => {
     carrez: { vente: 'transaction', location: Infinity },
     boutin: { vente: null, location: Infinity }
   };
+
+  // Special handling for amiante: if diagnostic was done after 2012 and no amiante detected, valid forever
+  if (diagnostic === 'amiante' && !detecte && diagnosticDate) {
+    const diagYear = diagnosticDate.getFullYear();
+    if (diagYear > 2012) {
+      return Infinity;
+    }
+  }
 
   return validites[diagnostic]?.[context] ?? null;
 };
@@ -177,13 +185,24 @@ export const evaluateDiagnostics = ({
   diagnosticsApplicables.forEach((diag) => {
     const definition = diagnosticDefinitions[diag];
     const detecte = Boolean(detections?.[diag]);
-    const validite = getDiagnosticValidity(diag, contextActuel, detecte);
+
+    // Get diagnostic date for special validity rules
+    const diagData = diagnostics?.[diag];
+    let diagnosticDate = null;
+    if (diagData?.year && diagData?.month) {
+      const recordMonth = toInteger(diagData.month);
+      const recordYear = toInteger(diagData.year);
+      if (recordMonth && recordYear) {
+        diagnosticDate = new Date(recordYear, recordMonth - 1, 1);
+      }
+    }
+
+    const validite = getDiagnosticValidity(diag, contextActuel, detecte, diagnosticDate);
 
     if (validite === null || !definition) {
       return;
     }
 
-    const diagData = diagnostics?.[diag];
     let statut = 'manquant';
     let message = 'Diagnostic non renseigné';
     let needsRedo = false;
