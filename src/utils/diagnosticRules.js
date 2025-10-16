@@ -153,6 +153,8 @@ export const evaluateDiagnostics = ({
   contextActuel,
   contextDiagnostics,
   anneeConstruction,
+  anneeDiagnosticsGenerale,
+  moisDiagnosticsGenerale,
   diagnostics,
   detections
 }) => {
@@ -160,6 +162,10 @@ export const evaluateDiagnostics = ({
   const aujourd = new Date();
   let alerteContexte = null;
   let incompatibiliteContexte = false;
+  const generalYear = toInteger(anneeDiagnosticsGenerale);
+  const generalMonthRaw =
+    moisDiagnosticsGenerale || (generalYear ? '01' : null);
+  const generalMonth = toInteger(generalMonthRaw);
 
   if (contextDiagnostics === 'location' && contextActuel === 'vente') {
     incompatibiliteContexte = true;
@@ -187,11 +193,14 @@ export const evaluateDiagnostics = ({
     const detecte = Boolean(detections?.[diag]);
 
     // Get diagnostic date for special validity rules
-    const diagData = diagnostics?.[diag];
+    const diagData = diagnostics?.[diag] ?? {};
     let diagnosticDate = null;
-    if (diagData?.year && diagData?.month) {
-      const recordMonth = toInteger(diagData.month);
-      const recordYear = toInteger(diagData.year);
+    const monthValue = diagData.month ?? (generalMonth ? generalMonthRaw : null);
+    const yearValue = diagData.year ?? generalYear;
+
+    if (monthValue && yearValue) {
+      const recordMonth = toInteger(monthValue);
+      const recordYear = toInteger(yearValue);
       if (recordMonth && recordYear) {
         diagnosticDate = new Date(recordYear, recordMonth - 1, 1);
       }
@@ -208,7 +217,7 @@ export const evaluateDiagnostics = ({
     let needsRedo = false;
 
     if (diag === 'carrez' && contextActuel === 'vente' && validite === 'transaction') {
-      if (diagData?.year && diagData?.month) {
+      if (monthValue && yearValue) {
         statut = 'attention';
         message = 'Valable pour cette transaction uniquement - À refaire pour la prochaine vente';
       }
@@ -224,13 +233,13 @@ export const evaluateDiagnostics = ({
       return;
     }
 
-    if (incompatibiliteContexte && diagData?.year && diagData?.month) {
+    if (incompatibiliteContexte && monthValue && yearValue) {
       statut = 'incompatible';
       message = 'À REFAIRE - Diagnostic de location non valable pour vente';
       needsRedo = true;
-    } else if (diagData?.year && diagData?.month) {
-      const recordMonth = toInteger(diagData.month);
-      const recordYear = toInteger(diagData.year);
+    } else if (monthValue && yearValue) {
+      const recordMonth = toInteger(monthValue);
+      const recordYear = toInteger(yearValue);
 
       if (recordMonth && recordYear) {
         const date = new Date(recordYear, recordMonth - 1, 1);

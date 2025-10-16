@@ -7,6 +7,8 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
     contextActuel,
     contextDiagnostics,
     anneeConstruction,
+    anneeDiagnosticsGenerale,
+    moisDiagnosticsGenerale,
     diagnostics,
     detections,
     diagnosticsApplicables
@@ -25,6 +27,8 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
     setContextActuel,
     setContextDiagnostics,
     setAnneeConstruction,
+    setAnneeDiagnosticsGenerale,
+    setMoisDiagnosticsGenerale,
     analyserDiagnostics,
     handleMonthChange,
     handleYearChange,
@@ -144,6 +148,57 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
 
               {contextDiagnostics && contextDiagnostics !== 'nouveau' && (
                 <div className="space-y-4 rounded-lg bg-slate-50 p-5">
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] md:items-end">
+                    <div>
+                      <label
+                        htmlFor="anneeDiagnosticsGenerale"
+                        className="mb-2 block text-sm font-semibold text-gray-700"
+                      >
+                        Quand les derniers diagnostics ont-ils été réalisés ?{' '}
+                        <span className="text-xs font-normal text-gray-500">(année)</span>
+                      </label>
+                      <input
+                        id="anneeDiagnosticsGenerale"
+                        type="number"
+                        min="2000"
+                        max="2099"
+                        placeholder="Ex : 2022"
+                        className="w-full max-w-xs rounded-lg border-2 border-slate-200 px-4 py-3 text-sm font-medium text-gray-700 outline-none transition focus:border-indigo-500"
+                        value={anneeDiagnosticsGenerale}
+                        onChange={(event) => setAnneeDiagnosticsGenerale(event.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-gray-700">
+                        Mois par défaut
+                        <span className="ml-1 text-xs font-normal text-gray-500">
+                          (Janvier sélectionné automatiquement)
+                        </span>
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {months.map((month) => {
+                          const isSelected =
+                            (moisDiagnosticsGenerale || '01') === month.value;
+                          return (
+                            <button
+                              type="button"
+                              key={month.value}
+                              className={`rounded px-3 py-1.5 text-sm font-medium transition ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : 'border border-slate-300 bg-white text-gray-700 hover:bg-slate-100'
+                              }`}
+                              onClick={() => setMoisDiagnosticsGenerale(month.value)}
+                            >
+                              {month.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-1 text-sm text-slate-600">
                     <p>Seuls les diagnostics requis pour votre bien sont listés.</p>
                     {showAmianteInfo && (
@@ -197,7 +252,9 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
                           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div className="flex flex-wrap gap-1">
                               {months.map((month) => {
-                                const isSelected = diagnostics?.[diagKey]?.month === month.value;
+                                const selectedMonth =
+                                  diagnostics?.[diagKey]?.month ?? moisDiagnosticsGenerale ?? '01';
+                                const isSelected = selectedMonth === month.value;
                                 return (
                                   <button
                                     type="button"
@@ -220,7 +277,9 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
                               max="2099"
                               placeholder="Année"
                               className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-gray-700 outline-none transition focus:border-indigo-500"
-                              value={diagnostics?.[diagKey]?.year || ''}
+                              value={
+                                diagnostics?.[diagKey]?.year ?? anneeDiagnosticsGenerale ?? ''
+                              }
                               onChange={(event) => handleYearChange(diagKey, event.target.value)}
                             />
                           </div>
@@ -252,6 +311,8 @@ DiagnosticForm.propTypes = {
     contextActuel: PropTypes.string.isRequired,
     contextDiagnostics: PropTypes.string.isRequired,
     anneeConstruction: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    anneeDiagnosticsGenerale: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    moisDiagnosticsGenerale: PropTypes.string.isRequired,
     diagnostics: PropTypes.object.isRequired,
     detections: PropTypes.object.isRequired,
     diagnosticsApplicables: PropTypes.arrayOf(PropTypes.string).isRequired
@@ -276,6 +337,8 @@ DiagnosticForm.propTypes = {
     setContextActuel: PropTypes.func.isRequired,
     setContextDiagnostics: PropTypes.func.isRequired,
     setAnneeConstruction: PropTypes.func.isRequired,
+    setAnneeDiagnosticsGenerale: PropTypes.func.isRequired,
+    setMoisDiagnosticsGenerale: PropTypes.func.isRequired,
     analyserDiagnostics: PropTypes.func.isRequired,
     handleMonthChange: PropTypes.func.isRequired,
     handleYearChange: PropTypes.func.isRequired,

@@ -20,6 +20,8 @@ const useDiagnostics = () => {
   const [contextActuel, setContextActuel] = useState('');
   const [contextDiagnostics, setContextDiagnostics] = useState('');
   const [anneeConstruction, setAnneeConstruction] = useState('');
+  const [anneeDiagnosticsGenerale, setAnneeDiagnosticsGenerale] = useState('');
+  const [moisDiagnosticsGenerale, setMoisDiagnosticsGenerale] = useState('01');
   const [diagnostics, setDiagnostics] = useState({});
   const [detections, setDetections] = useState(initialDetections);
   const [results, setResults] = useState([]);
@@ -48,6 +50,8 @@ const useDiagnostics = () => {
       contextActuel,
       contextDiagnostics,
       anneeConstruction,
+      anneeDiagnosticsGenerale,
+      moisDiagnosticsGenerale,
       diagnostics,
       detections
     });
@@ -67,13 +71,28 @@ const useDiagnostics = () => {
   };
 
   const handleYearChange = (diag, year) => {
-    setDiagnostics((prev) => ({
-      ...prev,
-      [diag]: {
-        ...prev[diag],
-        year
+    setDiagnostics((prev) => {
+      const previousDiag = prev[diag] || {};
+      const updatedDiag = {
+        ...previousDiag
+      };
+
+      if (year) {
+        updatedDiag.year = year;
+      } else {
+        delete updatedDiag.year;
       }
-    }));
+
+      const nextDiagnostics = { ...prev };
+
+      if (Object.keys(updatedDiag).length === 0) {
+        delete nextDiagnostics[diag];
+      } else {
+        nextDiagnostics[diag] = updatedDiag;
+      }
+
+      return nextDiagnostics;
+    });
   };
 
   const handleDetectionChange = (diag, checked) => {
@@ -89,6 +108,8 @@ const useDiagnostics = () => {
       contextActuel,
       contextDiagnostics,
       anneeConstruction,
+      anneeDiagnosticsGenerale,
+      moisDiagnosticsGenerale,
       diagnostics,
       detections,
       results,
@@ -108,6 +129,8 @@ const useDiagnostics = () => {
       setContextActuel,
       setContextDiagnostics,
       setAnneeConstruction,
+      setAnneeDiagnosticsGenerale,
+      setMoisDiagnosticsGenerale,
       analyserDiagnostics,
       handleMonthChange,
       handleYearChange,
