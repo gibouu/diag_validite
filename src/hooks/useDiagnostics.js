@@ -95,6 +95,34 @@ const useDiagnostics = () => {
     });
   };
 
+  const handleFlagChange = (diag, flag, checked) => {
+    setDiagnostics((prev) => {
+      const previousDiag = prev[diag] || {};
+      const updatedDiag = {
+        ...previousDiag,
+        [flag]: checked
+      };
+
+      const nextDiagnostics = { ...prev, [diag]: updatedDiag };
+
+      // Clean up when all values are falsy/undefined
+      const hasMeaningfulValue = Object.entries(updatedDiag).some(([key, value]) => {
+        if (key === 'month' || key === 'year') {
+          return Boolean(value);
+        }
+        return value === true;
+      });
+
+      if (!hasMeaningfulValue) {
+        const copy = { ...nextDiagnostics };
+        delete copy[diag];
+        return copy;
+      }
+
+      return nextDiagnostics;
+    });
+  };
+
   const handleDetectionChange = (diag, checked) => {
     setDetections((prev) => ({
       ...prev,
@@ -134,6 +162,7 @@ const useDiagnostics = () => {
       analyserDiagnostics,
       handleMonthChange,
       handleYearChange,
+      handleFlagChange,
       handleDetectionChange
     }
   };

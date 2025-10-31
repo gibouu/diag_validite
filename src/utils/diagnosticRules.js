@@ -37,14 +37,33 @@ export const months = [
 ];
 
 export const diagnosticDefinitions = {
-  dpe: { nom: 'DPE (Diagnostic de Performance Énergétique)', obligatoire: true },
-  amiante: { nom: 'Diagnostic Amiante', obligatoire: true, detecte: true },
+  dpe: {
+    nom: 'DPE (Diagnostic de Performance Énergétique)',
+    obligatoire: true,
+    flags: {
+      travaux: "Travaux d'amélioration énergétique réalisés depuis ce diagnostic"
+    }
+  },
+  amiante: {
+    nom: 'Diagnostic Amiante',
+    obligatoire: true,
+    detecte: true,
+    flags: {
+      reamenagement: 'Réaménagement ou travaux impactant les matériaux depuis ce diagnostic'
+    }
+  },
   plomb: { nom: 'CREP (Plomb)', obligatoire: true, detecte: true },
   termites: { nom: 'Diagnostic Termites', obligatoire: false, detecte: true },
   gaz: { nom: 'Diagnostic Gaz', obligatoire: false },
   electricite: { nom: 'Diagnostic Électricité', obligatoire: false },
   erp: { nom: 'ERP (État des Risques et Pollutions)', obligatoire: true },
-  carrez: { nom: 'Loi Carrez (Surface)', obligatoire: false },
+  carrez: {
+    nom: 'Loi Carrez (Surface)',
+    obligatoire: false,
+    flags: {
+      reamenagement: 'Réaménagement ayant modifié la surface depuis ce mesurage'
+    }
+  },
   boutin: { nom: 'Loi Boutin (Surface)', obligatoire: false }
 };
 
@@ -90,7 +109,6 @@ export const getApplicableDiagnostics = (typeBien, context, annee) => {
       addElectricite();
       addGaz();
       addErp();
-      if (typeBien === 'appartement') addCarrez();
       addBoutin();
     }
   }
@@ -131,14 +149,6 @@ export const getDiagnosticValidity = (diagnostic, context, detecte = false, diag
     boutin: { vente: null, location: Infinity }
   };
 
-  // Special handling for amiante: if diagnostic was done after 2012 and no amiante detected, valid forever
-  if (diagnostic === 'amiante' && !detecte && diagnosticDate) {
-    const diagYear = diagnosticDate.getFullYear();
-    if (diagYear > 2012) {
-      return Infinity;
-    }
-  }
-
   return validites[diagnostic]?.[context] ?? null;
 };
 
@@ -146,6 +156,33 @@ const formatExpirationDate = (startDate, validityYears) => {
   const expiration = new Date(startDate);
   expiration.setMonth(expiration.getMonth() + Math.round(validityYears * 12));
   return expiration;
+};
+
+const DPE_RANGE_START_2013 = new Date(2013, 0, 1);
+const DPE_RANGE_START_2018 = new Date(2018, 0, 1);
+const DPE_RANGE_START_JULY_2021 = new Date(2021, 6, 1);
+const DPE_EXPIRATION_END_2017 = new Date(2022, 11, 31);
+const DPE_EXPIRATION_END_JUNE_2021 = new Date(2024, 11, 31);
+const AMIANTE_REGULATORY_CUTOFF = new Date(2013, 3, 1);
+const PLOMB_REGULATORY_CUTOFF = new Date(2006, 3, 27);
+
+const getDpeReglementExpiration = (diagnosticDate) => {
+  if (!diagnosticDate) {
+    return null;
+  }
+
+  if (diagnosticDate >= DPE_RANGE_START_2013 && diagnosticDate < DPE_RANGE_START_2018) {
+    return DPE_EXPIRATION_END_2017;
+  }
+
+  if (
+    diagnosticDate >= DPE_RANGE_START_2018 &&
+    diagnosticDate < DPE_RANGE_START_JULY_2021
+  ) {
+    return DPE_EXPIRATION_END_JUNE_2021;
+  }
+
+  return null;
 };
 
 export const evaluateDiagnostics = ({
@@ -194,6 +231,8 @@ export const evaluateDiagnostics = ({
 
     // Get diagnostic date for special validity rules
     const diagData = diagnostics?.[diag] ?? {};
+    const travaux = Boolean(diagData.travaux);
+    const reamenagement = Boolean(diagData.reamenagement);
     let diagnosticDate = null;
     const monthValue = diagData.month ?? (generalMonth ? generalMonthRaw : null);
     const yearValue = diagData.year ?? generalYear;
@@ -217,7 +256,12 @@ export const evaluateDiagnostics = ({
     let needsRedo = false;
 
     if (diag === 'carrez' && contextActuel === 'vente' && validite === 'transaction') {
-      if (monthValue && yearValue) {
+      if (reamenagement) {
+        statut = 'expire';
+        message =
+          'Réaménagement déclaré : métrage Carrez à refaire avant la prochaine mise en vente';
+        needsRedo = true;
+      } else if (monthValue && yearValue) {
         statut = 'attention';
         message = 'Valable pour cette transaction uniquement - À refaire pour la prochaine vente';
       }
@@ -227,7 +271,7 @@ export const evaluateDiagnostics = ({
         statut,
         message,
         obligatoire: definition.obligatoire,
-        needsRedo: false,
+        needsRedo,
         detecte: false
       });
       return;
@@ -242,10 +286,72 @@ export const evaluateDiagnostics = ({
       const recordYear = toInteger(yearValue);
 
       if (recordMonth && recordYear) {
-        const date = new Date(recordYear, recordMonth - 1, 1);
+        const date = diagnosticDate;
         const diffAnnees = (aujourd - date) / (1000 * 60 * 60 * 24 * 365);
+        let overrideResult = null;
+        let customExpiration = null;
 
-        if (validite === Infinity) {
+        if (diag === 'dpe') {
+          if (travaux) {
+            overrideResult = {
+              statut: 'expire',
+              message:
+                "Travaux d'amélioration énergétique réalisés : DPE à renouveler",
+              needsRedo: true
+            };
+          } else {
+            customExpiration = getDpeReglementExpiration(diagnosticDate);
+          }
+        }
+
+        if (!overrideResult && diag === 'amiante') {
+          if (reamenagement) {
+            overrideResult = {
+              statut: 'expire',
+              message: 'Réaménagement déclaré : diagnostic amiante à renouveler',
+              needsRedo: true
+            };
+          } else if (diagnosticDate && diagnosticDate < AMIANTE_REGULATORY_CUTOFF) {
+            overrideResult = {
+              statut: 'expire',
+              message: 'Diagnostic amiante réalisé avant avril 2013 : à renouveler',
+              needsRedo: true
+            };
+          }
+        }
+
+        if (!overrideResult && diag === 'plomb' && diagnosticDate < PLOMB_REGULATORY_CUTOFF) {
+          overrideResult = {
+            statut: 'expire',
+            message: 'Diagnostic plomb réalisé avant le 27/04/2006 : à refaire',
+            needsRedo: true
+          };
+        }
+
+        if (overrideResult) {
+          statut = overrideResult.statut;
+          message = overrideResult.message;
+          needsRedo = overrideResult.needsRedo;
+        } else if (customExpiration) {
+          if (aujourd > customExpiration) {
+            statut = 'expire';
+            needsRedo = true;
+            message = `Expiré depuis ${customExpiration.toLocaleDateString('fr-FR', {
+              month: 'long',
+              year: 'numeric'
+            })} (limite réglementaire) - À REFAIRE`;
+          } else {
+            statut = 'valide';
+            const moisRestants = Math.max(
+              0,
+              Math.round((customExpiration - aujourd) / (1000 * 60 * 60 * 24 * 30))
+            );
+            message = `Valide jusqu'à ${customExpiration.toLocaleDateString('fr-FR', {
+              month: 'long',
+              year: 'numeric'
+            })} (limite réglementaire) (${moisRestants} mois restants)`;
+          }
+        } else if (validite === Infinity) {
           statut = 'valide';
           message = 'Valide indéfiniment';
         } else if (typeof validite === 'number') {

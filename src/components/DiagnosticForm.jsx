@@ -32,6 +32,7 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
     analyserDiagnostics,
     handleMonthChange,
     handleYearChange,
+    handleFlagChange,
     handleDetectionChange
   } = actions;
 
@@ -249,6 +250,27 @@ const DiagnosticForm = ({ state, metadata, actions }) => {
                             )}
                           </div>
 
+                          {definition.flags && (
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-start">
+                              {Object.entries(definition.flags).map(([flagKey, flagLabel]) => (
+                                <label
+                                  key={flagKey}
+                                  className="flex items-center gap-2 text-sm text-gray-700"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-indigo-600"
+                                    checked={Boolean(diagnostics?.[diagKey]?.[flagKey])}
+                                    onChange={(event) =>
+                                      handleFlagChange(diagKey, flagKey, event.target.checked)
+                                    }
+                                  />
+                                  {flagLabel}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+
                           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div className="flex flex-wrap gap-1">
                               {months.map((month) => {
@@ -342,6 +364,7 @@ DiagnosticForm.propTypes = {
     analyserDiagnostics: PropTypes.func.isRequired,
     handleMonthChange: PropTypes.func.isRequired,
     handleYearChange: PropTypes.func.isRequired,
+    handleFlagChange: PropTypes.func.isRequired,
     handleDetectionChange: PropTypes.func.isRequired
   }).isRequired
 };
